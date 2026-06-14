@@ -28,8 +28,8 @@ class SmartCapitalizerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Smart Clipboard Capitalizer")
-        self.root.geometry("560x780")
-        self.root.minsize(560, 680)
+        self.root.geometry("560x800")
+        self.root.minsize(560, 700)
         self.root.resizable(False, True)  # Lock horizontal resizing to preserve the editorial layout
         self.root.configure(fg_color="#F5F0E8")  # Warm parchment base background
 
@@ -81,6 +81,21 @@ class SmartCapitalizerApp:
         if self.settings.get("auto_start", False):
             self.start_monitoring()
 
+    def adjust_textbox_height(self, textbox, min_lines=1, max_lines=6, line_height=18, base_padding=12):
+        """Dynamically resizes a CTkTextbox based on its visual lines count."""
+        txt = textbox._textbox
+        try:
+            # count the number of display lines
+            res = txt.count("1.0", "end-1c", "displaylines")
+            display_lines = res[0] if res else 1
+        except Exception:
+            # fallback if count fails
+            display_lines = len(txt.get("1.0", "end-1c").split("\n"))
+            
+        display_lines = max(min_lines, min(max_lines, display_lines))
+        new_height = base_padding + (display_lines * line_height)
+        textbox.configure(height=new_height)
+
     def load_settings(self):
         """Loads configuration from JSON file, setting defaults if missing."""
         defaults = {
@@ -110,8 +125,10 @@ class SmartCapitalizerApp:
             self.settings["min_part_len"] = int(self.min_len_var.get())
             self.settings["auto_detect_parts"] = bool(self.auto_detect_var.get())
             self.settings["custom_uppercase"] = self.uppercase_entry.get().strip()
-            self.settings["whitelist"] = self.whitelist_entry.get().strip()
-            self.settings["blacklist"] = self.blacklist_entry.get().strip()
+            if hasattr(self, "whitelist_text"):
+                self.settings["whitelist"] = self.whitelist_text.get("1.0", "end-1c").strip()
+            if hasattr(self, "blacklist_text"):
+                self.settings["blacklist"] = self.blacklist_text.get("1.0", "end-1c").strip()
             self.settings["auto_start"] = bool(self.auto_start_var.get())
 
             with open(SETTINGS_FILE, "w") as f:
@@ -248,41 +265,45 @@ class SmartCapitalizerApp:
         self.uppercase_entry.bind("<FocusOut>", lambda e: [self.uppercase_entry.configure(border_color=self.text_secondary), self.save_settings()])
         self.uppercase_entry.bind("<Return>", lambda e: self.save_settings())
 
-        # Rule 4: Whitelist Phrases
+        # Rule 4: Whitelist Phrases (Auto-growing Textbox)
         whitelist_label = ctk.CTkLabel(
             rules_grid, text="🟢 Whitelisted Phrases (preserve custom case, e.g. iPhone, macOS):",
             font=self.normal_font, text_color=self.text_primary
         )
         whitelist_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(5, 4))
 
-        self.whitelist_entry = ctk.CTkEntry(
+        self.whitelist_text = ctk.CTkTextbox(
             rules_grid, font=self.normal_font, fg_color=self.elevated_bg,
             border_color=self.text_secondary, text_color=self.text_primary,
-            height=30, border_width=1, corner_radius=6
+            height=30, border_width=1, corner_radius=6, wrap="word",
+            activate_scrollbars=True
         )
-        self.whitelist_entry.insert(0, self.settings.get("whitelist", ""))
-        self.whitelist_entry.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
-        self.whitelist_entry.bind("<FocusIn>", lambda e: self.whitelist_entry.configure(border_color=self.accent_color))
-        self.whitelist_entry.bind("<FocusOut>", lambda e: [self.whitelist_entry.configure(border_color=self.text_secondary), self.save_settings()])
-        self.whitelist_entry.bind("<Return>", lambda e: self.save_settings())
+        self.whitelist_text.insert("1.0", self.settings.get("whitelist", ""))
+        self.adjust_textbox_height(self.whitelist_text)
+        self.whitelist_text.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
+        self.whitelist_text.bind("<FocusIn>", lambda e: self.whitelist_text.configure(border_color=self.accent_color))
+        self.whitelist_text.bind("<FocusOut>", lambda e: [self.whitelist_text.configure(border_color=self.text_secondary), self.save_settings()])
+        self.whitelist_text.bind("<KeyRelease>", lambda e: self.adjust_textbox_height(self.whitelist_text))
 
-        # Rule 5: Blacklist Phrases
+        # Rule 5: Blacklist Phrases (Auto-growing Textbox)
         blacklist_label = ctk.CTkLabel(
             rules_grid, text="🔴 Blacklisted Phrases (prevent capitalization, e.g. draft, ignored):",
             font=self.normal_font, text_color=self.text_primary
         )
         blacklist_label.grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(5, 4))
 
-        self.blacklist_entry = ctk.CTkEntry(
+        self.blacklist_text = ctk.CTkTextbox(
             rules_grid, font=self.normal_font, fg_color=self.elevated_bg,
             border_color=self.text_secondary, text_color=self.text_primary,
-            height=30, border_width=1, corner_radius=6
+            height=30, border_width=1, corner_radius=6, wrap="word",
+            activate_scrollbars=True
         )
-        self.blacklist_entry.insert(0, self.settings.get("blacklist", ""))
-        self.blacklist_entry.grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
-        self.blacklist_entry.bind("<FocusIn>", lambda e: self.blacklist_entry.configure(border_color=self.accent_color))
-        self.blacklist_entry.bind("<FocusOut>", lambda e: [self.blacklist_entry.configure(border_color=self.text_secondary), self.save_settings()])
-        self.blacklist_entry.bind("<Return>", lambda e: self.save_settings())
+        self.blacklist_text.insert("1.0", self.settings.get("blacklist", ""))
+        self.adjust_textbox_height(self.blacklist_text)
+        self.blacklist_text.grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
+        self.blacklist_text.bind("<FocusIn>", lambda e: self.blacklist_text.configure(border_color=self.accent_color))
+        self.blacklist_text.bind("<FocusOut>", lambda e: [self.blacklist_text.configure(border_color=self.text_secondary), self.save_settings()])
+        self.blacklist_text.bind("<KeyRelease>", lambda e: self.adjust_textbox_height(self.blacklist_text))
 
         rules_grid.columnconfigure(0, weight=0)
         rules_grid.columnconfigure(1, weight=1)
@@ -471,12 +492,16 @@ class SmartCapitalizerApp:
         except ValueError:
             min_len = 4
 
+        import re
+        whitelist_raw = self.whitelist_text.get("1.0", "end-1c")
+        blacklist_raw = self.blacklist_text.get("1.0", "end-1c")
+
         return {
             "min_len": min_len,
             "auto_detect": self.auto_detect_var.get(),
             "uppercase": [w.strip() for w in self.uppercase_entry.get().split(",") if w.strip()],
-            "whitelist": [w.strip() for w in self.whitelist_entry.get().split(",") if w.strip()],
-            "blacklist": [w.strip() for w in self.blacklist_entry.get().split(",") if w.strip()]
+            "whitelist": [w.strip() for w in re.split(r'[,\n]', whitelist_raw) if w.strip()],
+            "blacklist": [w.strip() for w in re.split(r'[,\n]', blacklist_raw) if w.strip()]
         }
 
     def monitor_loop(self):
