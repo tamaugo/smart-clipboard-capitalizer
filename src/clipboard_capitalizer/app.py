@@ -604,10 +604,37 @@ class SmartCapitalizerApp:
             self.show_toast("Copied processed text")
 
     def on_close(self):
-        """Gracefully shuts down thread worker and saves settings before exiting."""
+        """Gracefully shuts down thread worker, saves settings, terminates related processes, and exits."""
+        # 1. Stop monitoring loop
         self.is_monitoring = False
+        
+        # 2. Save settings
         self.save_settings()
-        self.root.destroy()
+        
+        # 3. Terminate related Node.js processes (Vite/npm dev server for deck-run)
+        try:
+            import subprocess
+            # Powershell command targeting node.exe running vite/npm dev servers
+            cmd = (
+                "powershell -Command \""
+                "Get-CimInstance Win32_Process -Filter \\\"name = 'node.exe'\\\" | "
+                "Where-Object { $_.CommandLine -like '*deck-run*' -or $_.CommandLine -like '*vite*' -or $_.CommandLine -like '*npm-cli.js*' } | "
+                "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+                "\""
+            )
+            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+            
+        # 4. Destroy GUI widgets
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
+            
+        # 5. Explicitly exit Python 3.13 process
+        import sys
+        sys.exit(0)
 
 
 if __name__ == "__main__":
