@@ -28,8 +28,8 @@ class SmartCapitalizerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Smart Clipboard Capitalizer")
-        self.root.geometry("560x700")
-        self.root.minsize(560, 600)
+        self.root.geometry("560x780")
+        self.root.minsize(560, 680)
         self.root.resizable(False, True)  # Lock horizontal resizing to preserve the editorial layout
         self.root.configure(fg_color="#F5F0E8")  # Warm parchment base background
 
@@ -87,6 +87,8 @@ class SmartCapitalizerApp:
             "min_part_len": 4,
             "auto_detect_parts": True,
             "custom_uppercase": "XY2594YX684, 9-YCC142",
+            "whitelist": "iPhone, macOS",
+            "blacklist": "draft, ignore",
             "auto_start": False
         }
         if os.path.exists(SETTINGS_FILE):
@@ -108,6 +110,8 @@ class SmartCapitalizerApp:
             self.settings["min_part_len"] = int(self.min_len_var.get())
             self.settings["auto_detect_parts"] = bool(self.auto_detect_var.get())
             self.settings["custom_uppercase"] = self.uppercase_entry.get().strip()
+            self.settings["whitelist"] = self.whitelist_entry.get().strip()
+            self.settings["blacklist"] = self.blacklist_entry.get().strip()
             self.settings["auto_start"] = bool(self.auto_start_var.get())
 
             with open(SETTINGS_FILE, "w") as f:
@@ -243,6 +247,42 @@ class SmartCapitalizerApp:
         self.uppercase_entry.bind("<FocusIn>", lambda e: self.uppercase_entry.configure(border_color=self.accent_color))
         self.uppercase_entry.bind("<FocusOut>", lambda e: [self.uppercase_entry.configure(border_color=self.text_secondary), self.save_settings()])
         self.uppercase_entry.bind("<Return>", lambda e: self.save_settings())
+
+        # Rule 4: Whitelist Phrases
+        whitelist_label = ctk.CTkLabel(
+            rules_grid, text="🟢 Whitelisted Phrases (preserve custom case, e.g. iPhone, macOS):",
+            font=self.normal_font, text_color=self.text_primary
+        )
+        whitelist_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(5, 4))
+
+        self.whitelist_entry = ctk.CTkEntry(
+            rules_grid, font=self.normal_font, fg_color=self.elevated_bg,
+            border_color=self.text_secondary, text_color=self.text_primary,
+            height=30, border_width=1, corner_radius=6
+        )
+        self.whitelist_entry.insert(0, self.settings.get("whitelist", ""))
+        self.whitelist_entry.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
+        self.whitelist_entry.bind("<FocusIn>", lambda e: self.whitelist_entry.configure(border_color=self.accent_color))
+        self.whitelist_entry.bind("<FocusOut>", lambda e: [self.whitelist_entry.configure(border_color=self.text_secondary), self.save_settings()])
+        self.whitelist_entry.bind("<Return>", lambda e: self.save_settings())
+
+        # Rule 5: Blacklist Phrases
+        blacklist_label = ctk.CTkLabel(
+            rules_grid, text="🔴 Blacklisted Phrases (prevent capitalization, e.g. draft, ignored):",
+            font=self.normal_font, text_color=self.text_primary
+        )
+        blacklist_label.grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(5, 4))
+
+        self.blacklist_entry = ctk.CTkEntry(
+            rules_grid, font=self.normal_font, fg_color=self.elevated_bg,
+            border_color=self.text_secondary, text_color=self.text_primary,
+            height=30, border_width=1, corner_radius=6
+        )
+        self.blacklist_entry.insert(0, self.settings.get("blacklist", ""))
+        self.blacklist_entry.grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
+        self.blacklist_entry.bind("<FocusIn>", lambda e: self.blacklist_entry.configure(border_color=self.accent_color))
+        self.blacklist_entry.bind("<FocusOut>", lambda e: [self.blacklist_entry.configure(border_color=self.text_secondary), self.save_settings()])
+        self.blacklist_entry.bind("<Return>", lambda e: self.save_settings())
 
         rules_grid.columnconfigure(0, weight=0)
         rules_grid.columnconfigure(1, weight=1)
@@ -434,7 +474,9 @@ class SmartCapitalizerApp:
         return {
             "min_len": min_len,
             "auto_detect": self.auto_detect_var.get(),
-            "uppercase": [w.strip() for w in self.uppercase_entry.get().split(",") if w.strip()]
+            "uppercase": [w.strip() for w in self.uppercase_entry.get().split(",") if w.strip()],
+            "whitelist": [w.strip() for w in self.whitelist_entry.get().split(",") if w.strip()],
+            "blacklist": [w.strip() for w in self.blacklist_entry.get().split(",") if w.strip()]
         }
 
     def monitor_loop(self):
@@ -461,7 +503,9 @@ class SmartCapitalizerApp:
                 text,
                 min_part_len=settings["min_len"],
                 auto_detect_parts=settings["auto_detect"],
-                custom_uppercase_list=settings["uppercase"]
+                custom_uppercase_list=settings["uppercase"],
+                whitelist_list=settings["whitelist"],
+                blacklist_list=settings["blacklist"]
             )
 
             # If our processing rule altered the copied string, write it back

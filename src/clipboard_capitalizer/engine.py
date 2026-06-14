@@ -139,9 +139,51 @@ def format_word(word, min_part_len=4, auto_detect_parts=True, custom_uppercase=N
     return word
 
 
-def capitalize_text(text, min_part_len=4, auto_detect_parts=True, custom_uppercase_list=None):
+def apply_blacklist(original_text, processed_text, blacklist_set):
     """
-    Splits text into words and delimiters, formats the words, and reconstructs the text.
+    Restores any blacklisted words/phrases to their exact casing in the original text.
+    """
+    if not blacklist_set:
+        return processed_text
+        
+    for term in blacklist_set:
+        if not term:
+            continue
+        pattern = re.compile(re.escape(term), re.IGNORECASE)
+        original_matches = list(pattern.finditer(original_text))
+        if not original_matches:
+            continue
+            
+        processed_chars = list(processed_text)
+        for match in original_matches:
+            start, end = match.span()
+            # Capitalization process preserves 1-to-1 character length and spacing layout
+            processed_chars[start:end] = list(original_text[start:end])
+        processed_text = "".join(processed_chars)
+        
+    return processed_text
+
+
+def apply_whitelist(processed_text, whitelist_dict):
+    """
+    Replaces any case-insensitive matches of whitelisted terms with their exact whitelisted casing.
+    whitelist_dict: dictionary mapping lowercase term -> exact whitelisted term (e.g. "iphone" -> "iPhone")
+    """
+    if not whitelist_dict:
+        return processed_text
+        
+    for lower_term, exact_term in whitelist_dict.items():
+        if not lower_term:
+            continue
+        pattern = re.compile(re.escape(lower_term), re.IGNORECASE)
+        processed_text = pattern.sub(exact_term, processed_text)
+        
+    return processed_text
+
+
+def capitalize_text(text, min_part_len=4, auto_detect_parts=True, custom_uppercase_list=None, whitelist_list=None, blacklist_list=None):
+    """
+    Splits text into words and delimiters, formats the words, applies whitelist/blacklist rules, and reconstructs the text.
     """
     if not text:
         return text
@@ -165,4 +207,16 @@ def capitalize_text(text, min_part_len=4, auto_detect_parts=True, custom_upperca
         else:
             formatted_parts.append(part)
 
-    return "".join(formatted_parts)
+    processed = "".join(formatted_parts)
+
+    # Apply blacklist (restores matching terms to original casing)
+    if blacklist_list:
+        blacklist_set = {w.strip() for w in blacklist_list if w.strip()}
+        processed = apply_blacklist(text, processed, blacklist_set)
+
+    # Apply whitelist (forces matching terms to exact specified casing)
+    if whitelist_list:
+        whitelist_dict = {w.strip().lower(): w.strip() for w in whitelist_list if w.strip()}
+        processed = apply_whitelist(processed, whitelist_dict)
+
+    return processed

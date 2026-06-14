@@ -9,47 +9,59 @@ from src.clipboard_capitalizer import engine
 
 def run_tests():
     # Format of each test case:
-    # (input_text, expected_output, custom_uppercase_list)
+    # (input_text, expected_output, custom_uppercase_list, whitelist_list, blacklist_list)
     test_cases = [
         # Standard Title Case checks
-        ("the", "The", []),
-        ("cat", "Cat", []),
-        ("THE CAT", "The Cat", []),
-        ("the cat", "The Cat", []),
-        ("hello world", "Hello World", []),
-        ("HELLO WORLD", "Hello World", []),
+        ("the", "The", [], [], []),
+        ("cat", "Cat", [], [], []),
+        ("THE CAT", "The Cat", [], [], []),
+        ("the cat", "The Cat", [], [], []),
+        ("hello world", "Hello World", [], [], []),
+        ("HELLO WORLD", "Hello World", [], [], []),
         
         # Part Number checks (default settings)
-        ("xy2594yx684", "XY2594YX684", []),
-        ("XY2594YX684", "XY2594YX684", []),
-        ("9-ycc142", "9-YCC142", []),
-        ("9-YCC142", "9-YCC142", []),
+        ("xy2594yx684", "XY2594YX684", [], [], []),
+        ("XY2594YX684", "XY2594YX684", [], [], []),
+        ("9-ycc142", "9-YCC142", [], [], []),
+        ("9-YCC142", "9-YCC142", [], [], []),
         
         # Mixed standard text and part numbers
-        ("the cat needs part xy2594yx684 and 9-ycc142.", "The Cat Needs Part XY2594YX684 And 9-YCC142.", []),
+        ("the cat needs part xy2594yx684 and 9-ycc142.", "The Cat Needs Part XY2594YX684 And 9-YCC142.", [], [], []),
         
         # Standard Title Case for consecutive string (former exclusion words now capitalized)
-        ("the cat in the hat with a bat", "The Cat In The Hat With A Bat", []),
+        ("the cat in the hat with a bat", "The Cat In The Hat With A Bat", [], [], []),
         
         # Custom uppercase words overrides (e.g. hyphenated custom word)
-        ("check part reference abc-def and normal text.", "Check Part Reference ABC-DEF And Normal Text.", ["abc-def"]),
+        ("check part reference abc-def and normal text.", "Check Part Reference ABC-DEF And Normal Text.", ["abc-def"], [], []),
         
         # Compound words title casing
-        ("well-being", "Well-Being", []),
-        ("mother-in-law", "Mother-In-Law", []),
+        ("well-being", "Well-Being", [], [], []),
+        ("mother-in-law", "Mother-In-Law", [], [], []),
+
+        # Whitelist checks (preserve custom mixed-case, e.g. iPhone, macOS)
+        ("i got a new iphone and macos update.", "I Got A New iPhone And macOS Update.", [], ["iPhone", "macOS"], []),
+        
+        # Blacklist checks (prevent capitalization completely, e.g. draft, ignore)
+        ("please ignore this draft document.", "Please ignore This draft Document.", [], [], ["ignore", "draft"]),
+
+        # Multi-word phrase whitelist/blacklist checks
+        ("using google chrome is good.", "Using Google Chrome Is Good.", [], ["Google Chrome"], []),
+        ("do not capitalize these words please.", "do not capitalize These Words Please.", [], [], ["do not capitalize"]),
     ]
     
     print("Running Corporate Capitalization Logic Unit Tests...")
     print("=" * 60)
     
     passed_count = 0
-    for i, (input_text, expected_output, upper_list) in enumerate(test_cases, 1):
+    for i, (input_text, expected_output, upper_list, white_list, black_list) in enumerate(test_cases, 1):
         # Process text
         result = engine.capitalize_text(
             input_text,
             min_part_len=4,
             auto_detect_parts=True,
-            custom_uppercase_list=upper_list
+            custom_uppercase_list=upper_list,
+            whitelist_list=white_list,
+            blacklist_list=black_list
         )
         
         if result == expected_output:
@@ -72,6 +84,7 @@ def run_tests():
     else:
         print("Some tests failed. Please check the engine.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     run_tests()
